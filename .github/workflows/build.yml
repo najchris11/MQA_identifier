@@ -16,7 +16,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        choco install cmake ninja qt5-base -y
+        choco install cmake ninja qt5 -y
     
     - name: Install FLAC
       run: |
