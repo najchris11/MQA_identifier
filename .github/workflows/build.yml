@@ -28,7 +28,10 @@ jobs:
     - name: Configure CMake (CLI)
       run: |
         cd build
-        cmake -G "Visual Studio 17 2022" ..
+        cmake -G "Visual Studio 17 2022" `
+              -DFLAC_INCLUDE_DIR="C:\ProgramData\chocolatey\lib\flac\tools\include" `
+              -DFLAC_LIBRARY="C:\ProgramData\chocolatey\lib\flac\tools\lib\libFLAC.lib" `
+              -DFLACPP_LIBRARY="C:\ProgramData\chocolatey\lib\flac\tools\lib\libFLAC++.lib" ..
     
     - name: Build CLI
       run: |
