@@ -94,7 +94,7 @@ class MQA_identifier {
 
     if (channels != 2 || (bps != 16 && bps != 24)) {
         std::cerr << "ERROR: this tool only supports 16bit/24bit stereo streams\n";
-        return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+        return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
     }
 
     /* increase number of read samples */

@@ -1,0 +1,136 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        choco install cmake ninja qt5-base -y
+    
+    - name: Install FLAC
+      run: |
+        choco install flac -y
+    
+    - name: Create build directory
+      run: mkdir build
+    
+    - name: Configure CMake (CLI)
+      run: |
+        cd build
+        cmake -G "Visual Studio 17 2022" ..
+    
+    - name: Build CLI
+      run: |
+        cd build
+        cmake --build . --config Release
+    
+    - name: Upload CLI executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: MQA_identifier_windows
+        path: build/Release/MQA_identifier.exe
+    
+    - name: Configure CMake (GUI)
+      run: |
+        cd build
+        cmake -G "Visual Studio 17 2022" gui/
+    
+    - name: Build GUI
+      run: |
+        cd build
+        cmake --build . --config Release --target MQA_identifier_gui
+    
+    - name: Upload GUI executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: MQA_identifier_gui_windows
+        path: build/Release/MQA_identifier_gui.exe
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        brew install cmake flac qt5
+    
+    - name: Create build directory
+      run: mkdir build
+    
+    - name: Configure CMake (CLI)
+      run: |
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+    
+    - name: Build CLI
+      run: |
+        cd build
+        cmake --build . --config Release
+    
+    - name: Upload CLI executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: MQA_identifier_macos
+        path: build/MQA_identifier
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libflac++-dev libflac-dev libqt5widgets5 qt5-qmake
+    
+    - name: Create build directory
+      run: mkdir build
+    
+    - name: Configure CMake (CLI)
+      run: |
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+    
+    - name: Build CLI
+      run: |
+        cd build
+        cmake --build . --config Release
+    
+    - name: Upload CLI executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: MQA_identifier_linux
+        path: build/MQA_identifier
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/download-artifact@v3
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          MQA_identifier_windows/MQA_identifier.exe
+          MQA_identifier_gui_windows/MQA_identifier_gui.exe
+          MQA_identifier_macos/MQA_identifier
+          MQA_identifier_linux/MQA_identifier
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
