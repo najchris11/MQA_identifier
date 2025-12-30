@@ -36,7 +36,7 @@ jobs:
         cmake --build . --config Release
     
     - name: Upload CLI executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: MQA_identifier_windows
         path: build/Release/MQA_identifier.exe
@@ -52,7 +52,7 @@ jobs:
         cmake --build . --config Release --target MQA_identifier_gui
     
     - name: Upload GUI executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: MQA_identifier_gui_windows
         path: build/Release/MQA_identifier_gui.exe
@@ -81,7 +81,7 @@ jobs:
         cmake --build . --config Release
     
     - name: Upload CLI executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: MQA_identifier_macos
         path: build/MQA_identifier
@@ -111,7 +111,7 @@ jobs:
         cmake --build . --config Release
     
     - name: Upload CLI executable
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: MQA_identifier_linux
         path: build/MQA_identifier
@@ -122,7 +122,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     
     steps:
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4
     
     - name: Create Release
       uses: softprops/action-gh-release@v1
