@@ -16,7 +16,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        choco install cmake ninja qt5 -y
+        choco install cmake ninja -y
     
     - name: Install FLAC
       run: |
@@ -40,6 +40,14 @@ jobs:
       with:
         name: MQA_identifier_windows
         path: build/Release/MQA_identifier.exe
+    
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '5.15.2'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
     
     - name: Configure CMake (GUI)
       run: |
