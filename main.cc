@@ -1,6 +1,7 @@
 /**
  * @file        main.cc
  * @author      Stavros Avramidis (@purpl3F0x)
+ * @author      naj-dev (@najchris11)
  * @date        16/12/2019
  * @copyright   2019 Stavros Avramidis under Apache 2.0 License
  */
@@ -243,6 +244,7 @@ int main(int argc, char *argv[]) {
     std::cout << "**************************************************\n";
     std::cout << "***********  MQA flac identifier tool  ***********\n";
     std::cout << "********  Stavros Avramidis (@purpl3F0x)  ********\n";
+    std::cout << "************  naj-dev (@najchris11)   ************\n";
     std::cout << "** https://github.com/purpl3F0x/MQA_identifier  **\n";
     std::cout << "**************************************************\n";
 

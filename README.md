@@ -28,4 +28,5 @@ For example
 *This project isn't related nor endorsed with MQA Ltd. and is made for purely educational purposes)*
 
 <br><br>
->  Stavros Avramidis Never Settle & Keep Running
+>  Stavros Avramidis Never Settle & Keep Running  
+>  naj-dev
