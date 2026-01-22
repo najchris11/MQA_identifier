@@ -15,7 +15,7 @@ else (NOT (MSVC))
     STRING(REPLACE "/O2" "/Od" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 endif ()
 
-include_directories(${CMAKE_PARENT_LIST_FILE}/../mainwindow.h)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 
 if (WIN32)
     set(GUI_TYPE WIN32)
@@ -27,5 +27,5 @@ find_package(Qt5Core REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 
 
-add_executable(${PROJECT_NAME} ${GUI_TYPE} ${CMAKE_PARENT_LIST_FILE}/../main.cpp ${CMAKE_PARENT_LIST_FILE}/../mainwindow.cpp ${CMAKE_PARENT_LIST_FILE}/../mainwindow.ui)
+add_executable(${PROJECT_NAME} ${GUI_TYPE} ../main.cpp ../mainwindow.cpp ../mainwindow.ui)
 target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core)

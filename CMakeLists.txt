@@ -17,6 +17,12 @@ if(APPLE)
     link_directories("/opt/homebrew/lib" "/usr/local/lib")
 endif()
 
+# Add search paths for vcpkg on Windows
+if(WIN32)
+    include_directories("${CMAKE_PREFIX_PATH}/include")
+    link_directories("${CMAKE_PREFIX_PATH}/lib")
+endif()
+
 find_library(FLACPP_LIB NAMES FLAC++ flac++ libFLAC++ libflac++)
 find_library(FLAC_LIB NAMES FLAC flac libFLAC libflac)
 find_library(OGG_LIB NAMES ogg libogg)
