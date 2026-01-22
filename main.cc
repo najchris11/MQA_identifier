@@ -36,10 +36,20 @@ bool verbose_logging = false;
 bool dry_run = false;
 std::string log_file_path = "mqa_identifier.log";
 std::map<std::string, std::vector<std::string>> scan_errors;
+std::vector<std::string> detailed_log;
+
+void log_message(const std::string& msg) {
+    if (!verbose_logging) return;
+    std::lock_guard<std::mutex> lock(log_mutex);
+    detailed_log.push_back(msg);
+}
 
 void log_skip(const std::string& path, const std::string& reason) {
     std::lock_guard<std::mutex> lock(log_mutex);
     scan_errors[reason].push_back(path);
+    if (verbose_logging) {
+        detailed_log.push_back("[ERROR] " + path + ": " + reason);
+    }
 }
 
 auto getSampleRateString(const uint32_t fs) {
@@ -58,6 +68,7 @@ void tagFile(const std::string& file, uint32_t original_rate) {
     if (dry_run) {
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cout << "DRY RUN: Would write tags to " << fs::path(file).filename().string() << "\n";
+        log_message("[DRY RUN] Would tag " + file);
         return;
     }
 
@@ -120,6 +131,7 @@ void tagFile(const std::string& file, uint32_t original_rate) {
             } else {
                  // std::lock_guard<std::mutex> lock(console_mutex);
                  // std::cout << "Tagged " << fs::path(file).filename().string() << "\n";
+                 log_message("[TAGGED] " + file);
             }
         }
 
@@ -192,6 +204,9 @@ void processFile(const std::string& file, int index) {
         }
         std::cout << filename << "\n";
         mqa_count++;
+        std::string extra_info = id.isMQAStudio() ? "Studio " : "";
+        extra_info += getSampleRateString(id.originalSampleRate());
+        log_message("[MQA] " + filename + " (" + extra_info + ")");
     } else {
         std::string err = id.getErrorMessage();
         if (!err.empty()) {
@@ -200,6 +215,7 @@ void processFile(const std::string& file, int index) {
             // Only print NOT MQA if no error occurred
             std::lock_guard<std::mutex> lock(console_mutex);
             std::cout << std::setw(3) << index << "\tNOT MQA \t" << filename << "\n";
+            log_message("[NOT MQA] " + filename);
         }
     }
     scanned_count++;
@@ -268,21 +284,38 @@ int main(int argc, char *argv[]) {
     std::cout << "Scanned " << scanned_count << " files\n"; // Using atomic count which tracks actual processed
     std::cout << "Found " << mqa_count << " MQA files\n";
 
-    if (verbose_logging && !scan_errors.empty()) {
+    if (verbose_logging) {
+        // Try to place log next to executable
+        try {
+            fs::path exe_path = fs::absolute(fs::path(argv[0]));
+            if (!exe_path.parent_path().empty()) {
+                log_file_path = (exe_path.parent_path() / "mqa_identifier.log").string();
+            }
+        } catch(...) {
+            // Fallback to CWD
+        }
+
         std::ofstream log(log_file_path);
         if (log.is_open()) {
             log << "MQA Identifier Scan Log\n";
-            log << "=======================\n\n";
-            for (const auto& [reason, paths] : scan_errors) {
-                log << "Reason: " << reason << "\n";
-                for (const auto& p : paths) {
-                    log << " - " << p << "\n";
+            log << "=======================\n";
+            log << "Detailed Event Log:\n";
+            for(const auto& line : detailed_log) {
+                log << line << "\n";
+            }
+
+            if (!scan_errors.empty()) {
+                log << "\nSummary of Errors:\n";
+                for (const auto& [reason, paths] : scan_errors) {
+                    log << "Reason: " << reason << "\n";
+                    for (const auto& p : paths) {
+                        log << " - " << p << "\n";
+                    }
                 }
-                log << "\n";
             }
             std::cout << "Log written to " << log_file_path << "\n";
         } else {
-            std::cerr << "Failed to open log file for writing.\n";
+            std::cerr << "Failed to open log file for writing at " << log_file_path << "\n";
         }
     }
 }
