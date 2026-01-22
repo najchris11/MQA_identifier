@@ -20,7 +20,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libflac-dev libogg-dev
+        sudo apt-get install -y libflac++-dev libogg-dev
 
     - name: Install Dependencies (macOS)
       if: runner.os == 'macOS'
