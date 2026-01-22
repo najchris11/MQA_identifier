@@ -106,7 +106,7 @@ void tagFile(const std::string& file, uint32_t original_rate) {
             // Let's stick to "MQA" for safety unless I find the snippet definitive. 
             // Actually, the user said "writes the mqa encode tag".
             // I'll use "MQA" as the value, key is "MQAENCODER".
-            vcBlock->append_comment(FLAC::Metadata::VorbisComment::Entry("MQAENCODER", "MQA"));
+            vcBlock->append_comment(FLAC::Metadata::VorbisComment::Entry("MQAENCODER", "MQAEncode v1.1, 2.3.3+800 (a505918), F8EC1703-7616-45E5-B81E-D60821434062, Dec 01 2017 22:19:30"));
             modified = true;
         }
 
@@ -184,7 +184,7 @@ void processFile(const std::string& file, int index) {
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cout << std::setw(3) << index << "\t";
         if (id.originalSampleRate()) {
-            std::cout << "MQA " << getSampleRateString(id.originalSampleRate()) << "\t";
+            std::cout << "MQA " << (id.isMQAStudio() ? "Studio " : "") << getSampleRateString(id.originalSampleRate()) << "\t";
              // Write tags
              tagFile(file, id.originalSampleRate());
         }

@@ -5,3 +5,7 @@ cmake-build-debug/
 MQA_identifier
 manual test/
 mqa_identifier.log
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
