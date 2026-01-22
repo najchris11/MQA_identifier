@@ -25,7 +25,7 @@ jobs:
     - name: Install Dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
-        brew install flac libogg
+        brew install flac libogg pkg-config
 
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'

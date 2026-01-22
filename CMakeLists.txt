@@ -30,7 +30,10 @@ if(NOT FLAC_FOUND)
 endif()
 
 # Final fallback to find_library (for older system installations)
-if(NOT FLAC_FOUND)
+if(TARGET FLAC::FLAC++)
+    # Use vcpkg/CMake target libraries
+    set(FLAC_LIBRARIES FLAC::FLAC++ FLAC::FLAC Ogg::ogg)
+elseif(NOT FLAC_LIBRARIES)
     find_library(FLACPP_LIB NAMES FLAC++ flac++ libFLAC++ libflac++)
     find_library(FLAC_LIB NAMES FLAC flac libFLAC libflac)
     find_library(OGG_LIB NAMES ogg libogg)
@@ -40,9 +43,6 @@ if(NOT FLAC_FOUND)
     endif()
     
     set(FLAC_LIBRARIES ${FLACPP_LIB} ${FLAC_LIB} ${OGG_LIB})
-else()
-    # Use vcpkg/CMake target libraries
-    set(FLAC_LIBRARIES FLAC::FLAC++ FLAC::FLAC Ogg::ogg)
 endif()
 
 add_executable(${PROJECT_NAME} main.cc)
