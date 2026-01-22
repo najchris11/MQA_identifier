@@ -30,14 +30,19 @@ jobs:
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
       run: |
-        cd $env:VCPKG_INSTALLATION_ROOT
-        git pull
-        .\vcpkg.exe install flac:x64-windows
-        .\vcpkg.exe install libogg:x64-windows
-        .\vcpkg.exe integrate install
+        vcpkg update
+        vcpkg install flac:x64-windows
+        vcpkg install libogg:x64-windows
+        vcpkg integrate install
 
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ runner.os == 'Windows' && '$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake' || '' }}
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+        else
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+        fi
 
     - name: Build
       run: cmake --build build --config Release

@@ -3,7 +3,7 @@ MQA Identifier
 Small tool to identify MQA encoding in *.flac* files.
 
 
-**Download latest release** [***here***](https://github.com/purpl3F0x/MQA_identifier/releases)
+**Download latest release** [***here***](https://github.com/najchris11/MQA_identifier/releases)
 
 **Gui tool availlable on releases**
 
