@@ -31,7 +31,7 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         vcpkg update
-        vcpkg install flac:x64-windows
+        vcpkg install libflac:x64-windows
         vcpkg install libogg:x64-windows
         vcpkg integrate install
 
