@@ -8,9 +8,11 @@
  - type `cd Downloads` (or the location you downloaded the app)
 ![](https://i.imgur.com/hKOhgld.png)
 
-- `mqa_identifer.exe [-v] {paths to files or folders}...` for Windows or `./mqa_identifier [-v] ...` on OSX.
+- `mqa_identifer.exe [-v] [--dry-run] {paths to files or folders}...` for Windows or `./mqa_identifier [-v] ...` on OSX.
 
 The optional `-v` flag enables detailed logging to `mqa_identifier.log`, recording any skipped files or errors (e.g. Mono files, permissions issues).
+
+**Note:** The tool will automatically **write** MQA tags (`MQAENCODER`, `ORIGINALSAMPLERATE`) to files if they are detected as MQA but missing these tags. use `--dry-run` to perform a scan without modifying any files.
 
 To get the path easily simple drag n drop the file/folder to terminal.
  

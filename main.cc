@@ -17,6 +17,7 @@
 #include <map>
 #include <atomic>
 
+#include <FLAC++/metadata.h>
 #include "mqa_identifier.h"
 
 namespace fs = std::filesystem;
@@ -31,6 +32,7 @@ std::atomic<size_t> mqa_count{0};
 
 // Logging
 bool verbose_logging = false;
+bool dry_run = false;
 std::string log_file_path = "mqa_identifier.log";
 std::map<std::string, std::vector<std::string>> scan_errors;
 
@@ -51,6 +53,84 @@ auto getSampleRateString(const uint32_t fs) {
     return ss.str();
 }
 
+void tagFile(const std::string& file, uint32_t original_rate) {
+    if (dry_run) {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "DRY RUN: Would write tags to " << fs::path(file).filename().string() << "\n";
+        return;
+    }
+
+    try {
+        FLAC::Metadata::Chain chain;
+        if (!chain.read(file.c_str())) {
+            log_skip(file, "Failed to read metadata chain");
+            return;
+        }
+
+        FLAC::Metadata::Iterator iterator;
+        iterator.init(chain);
+
+        FLAC::Metadata::VorbisComment* vcBlock = nullptr;
+        
+        // Find existing Vorbis Comment block
+        do {
+            if (iterator.get_block()->get_type() == FLAC__METADATA_TYPE_VORBIS_COMMENT) {
+                vcBlock = dynamic_cast<FLAC::Metadata::VorbisComment*>(iterator.get_block());
+                break;
+            }
+        } while (iterator.next());
+
+        // Create if missing
+        if (!vcBlock) {
+            vcBlock = new FLAC::Metadata::VorbisComment();
+            // Move to end to append
+            while (iterator.next()) {} 
+            if (!iterator.insert_block_after(vcBlock)) {
+                 delete vcBlock;
+                 log_skip(file, "Failed to create new VorbisComment block");
+                 return;
+            }
+        }
+
+        bool modified = false;
+
+        // Check/Add MQAENCODER
+        if (vcBlock->find_entry_from(0, "MQAENCODER") == -1) {
+            // Using a generic MQA encoder signature as placeholder or simply identifying it
+            // User snippet used: "MQAEncode v1.1, 2.3.3+800 (a505918), F8EC1703-7616-45E5-B81E-D60821434062, Dec 01 2017 22:19:30"
+            // Start simple: "MQA" unless specific string requested. User didn't specify, but snippet had that long string. 
+            // I'll use "MQA" for now to be safe, or the one from the snippet? 
+            // The snippet was from "a version of this file that has writing". I should probably trust it?
+            // "MQAEncode v1.1..." seems very specific to a specific encoder version. 
+            // I will use "MQA" to indicate presence, or maybe "MQAEncode".
+            // Let's stick to "MQA" for safety unless I find the snippet definitive. 
+            // Actually, the user said "writes the mqa encode tag".
+            // I'll use "MQA" as the value, key is "MQAENCODER".
+            vcBlock->append_comment(FLAC::Metadata::VorbisComment::Entry("MQAENCODER", "MQA"));
+            modified = true;
+        }
+
+        // Check/Add ORIGINALSAMPLERATE
+        if (original_rate > 0 && vcBlock->find_entry_from(0, "ORIGINALSAMPLERATE") == -1) {
+            vcBlock->append_comment(FLAC::Metadata::VorbisComment::Entry("ORIGINALSAMPLERATE", std::to_string(original_rate).c_str()));
+             modified = true;
+        }
+
+        if (modified) {
+            if (!chain.write()) {
+                 log_skip(file, "Failed to write metadata changes");
+            } else {
+                 // std::lock_guard<std::mutex> lock(console_mutex);
+                 // std::cout << "Tagged " << fs::path(file).filename().string() << "\n";
+            }
+        }
+
+    } catch (const std::exception& e) {
+        log_skip(file, "Tagging error: " + std::string(e.what()));
+    } catch (...) {
+        log_skip(file, "Unknown tagging error");
+    }
+}
 /**
  * @short Recursively scan a directory for .flac files
  * @param curDir directory to scan
@@ -103,10 +183,15 @@ void processFile(const std::string& file, int index) {
     if (detected) {
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cout << std::setw(3) << index << "\t";
-        if (id.originalSampleRate())
+        if (id.originalSampleRate()) {
             std::cout << "MQA " << getSampleRateString(id.originalSampleRate()) << "\t";
-        else
+             // Write tags
+             tagFile(file, id.originalSampleRate());
+        }
+        else {
             std::cout << "MQA\t\t";
+             tagFile(file, 0);
+        }
         std::cout << filename << "\n";
         mqa_count++;
     } else {
@@ -128,13 +213,16 @@ int main(int argc, char *argv[]) {
     
     if (argc == 1) {
         std::cout << "HINT: To use the tool provide files and/or directories as program arguments.\n";
-        std::cout << "      Use -v to enable verbose logging to mqa_identifier.log\n\n";
+        std::cout << "      Use -v to enable verbose logging to mqa_identifier.log\n";
+        std::cout << "      Use --dry-run to scan without modifying files.\n\n";
     }
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-v") {
             verbose_logging = true;
+        } else if (arg == "--dry-run") {
+            dry_run = true;
         } else if (arg.rfind("--log=", 0) == 0) {
             // Optional support for custom log path if user wants, though -v was requested
             // Keeping simplistic -v per newest request, but old plan mentioned --log. 

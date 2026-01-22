@@ -10,7 +10,9 @@ Small tool to identify MQA encoding in *.flac* files.
 # 
 **Usage**
 
-```./MQA_identifier [-v] {name_of_file.flac} or {name_of_folder_to_scan} ...```
+```./MQA_identifier [-v] [--dry-run] {name_of_file.flac} or {name_of_folder_to_scan} ...```
+
+**Note:** By default, the tool will automatically add `MQAENCODER=MQA` and `ORIGINALSAMPLERATE` tags to identified MQA files if they are missing. Use `--dry-run` to disable this behavior (read-only scan).
 
 For example
 ```./MQA_identifier -v "C:\Music\Mike Oldfield - Tubular Bells\(01) [Mike Oldfield] Part One.flac" "C:\Music\Queen - News Of The World"```

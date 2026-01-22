@@ -46,3 +46,6 @@ else
     echo "Log file not found!"
     exit 1
 fi
+
+echo "Running with --dry-run..."
+./build/MQA_identifier -v --dry-run "manual test"
