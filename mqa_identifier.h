@@ -15,6 +15,12 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <filesystem>
+#include <cstdio>
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
 
 #include <FLAC++/decoder.h>
 
@@ -55,12 +61,12 @@ class MQA_identifier {
     std::string error_message; // Store error details
 
 
-    explicit MyDecoder(std::string file) : FLAC::Decoder::File(), file_(std::move(file)) {};
+    explicit MyDecoder(std::filesystem::path file) : FLAC::Decoder::File(), file_(std::move(file)) {};
 
     ::FLAC__StreamDecoderInitStatus decode();
 
    protected:
-    std::string file_;
+    std::filesystem::path file_;
     using FLAC::Decoder::File::init;
     virtual ::FLAC__StreamDecoderWriteStatus write_callback(const ::FLAC__Frame *frame,
                                                             const FLAC__int32 *const buffer[]) override;
@@ -73,14 +79,14 @@ class MQA_identifier {
   };
 
 
-  std::string file_;
+  std::filesystem::path file_;
   MyDecoder decoder;
   bool isMQA_;
   bool isMQAStudio_ = false;
   std::string error_message_;
 
  public:
-  explicit MQA_identifier(std::string file) : file_(std::move(file)), decoder(file_), isMQA_(false) {}
+  explicit MQA_identifier(std::filesystem::path file) : file_(std::move(file)), decoder(file_), isMQA_(false) {}
 
 
   bool detect();
@@ -143,7 +149,33 @@ void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus 
 
     (void) this->set_md5_checking(true);
     (void) this->set_metadata_respond(FLAC__METADATA_TYPE_VORBIS_COMMENT); /* instruct decoder to parse vorbis_comments */
-    FLAC__StreamDecoderInitStatus init_status = this->init(this->file_);
+    
+    FILE* f = nullptr;
+#ifdef _WIN32
+    f = _wfopen(this->file_.c_str(), L"rb");
+#else
+    f = std::fopen(this->file_.c_str(), "rb");
+#endif
+
+    if (!f) {
+        this->error_message = "Failed to open file";
+        return FLAC__STREAM_DECODER_INIT_STATUS_ERROR_OPENING_FILE;
+    }
+
+    FLAC__StreamDecoderInitStatus init_status = this->init(f);
+    
+    // FLAC::Decoder::File::init(FILE*) does NOT take ownership of the file pointer in typical implementations,
+    // but the C API FLAC__stream_decoder_init_FILE usually requires the caller to manage it unless specific flags are set.
+    // However, the FLAC C++ wrapper behavior on `finish()` or destruction usually doesn't close the FILE* if passed externally. 
+    // We need to verify if we should close it. 
+    // Actually, looking at standard FLAC usage, if we use init(FILE*), we are responsible for the file.
+    // But we can't close it while decoding is running.
+    // We should close it after decoding is done. 
+    // Note: The C++ wrapper's `init(std::string)` does open/close internally. 
+    // Using `init(FILE*)` means we have to handle close. 
+    // We should close it in the destructor or after finish(). 
+    // Since MyDecoder is used for one-shot `decode()`, we can close it at end of decode().
+
 
     if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
         this->error_message = "Initializing decoder failed: " + std::string(FLAC__StreamDecoderInitStatusString[init_status]);
@@ -163,6 +195,10 @@ void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus 
         if (this->error_message.empty()) // If not already set by write_callback or init
              this->error_message = "Decoding failed: " + std::string(this->get_state().resolved_as_cstring(*this));
     }
+    
+    // Cleanup
+    if (f) std::fclose(f);
+
     return init_status;
 }
 
@@ -297,5 +333,6 @@ bool MQA_identifier::isMQAStudio() const noexcept {
 
 
 std::string MQA_identifier::filename() const noexcept {
-    return this->file_;
+    // Best effort generic string for display, might lose chars on Windows if called mostly for logging
+    return this->file_.string();
 }
