@@ -32,17 +32,18 @@ jobs:
       run: |
         git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
         C:\vcpkg\bootstrap-vcpkg.bat
-        C:\vcpkg\vcpkg.exe install libflac:x64-windows libogg:x64-windows --verbose
+        C:\vcpkg\vcpkg.exe install libflac:x64-windows libogg:x64-windows
         C:\vcpkg\vcpkg.exe integrate install
       shell: powershell
 
-    - name: Configure CMake
-      run: |
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH=C:/vcpkg/installed/x64-windows
-        else
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
-        fi
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+      shell: powershell
+
+    - name: Configure CMake (Unix)
+      if: runner.os != 'Windows'
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
       shell: bash
 
     - name: Build

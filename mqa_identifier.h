@@ -107,7 +107,7 @@ class MQA_identifier {
 
     /* write decoded PCM samples */
     for (size_t i = 0; i < frame->header.blocksize; i++)
-        this->samples.push_back((std::array<const FLAC__int32, 2>) {buffer[0][i], buffer[1][i]});
+        this->samples.push_back(std::array<const FLAC__int32, 2>{buffer[0][i], buffer[1][i]});
 
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
