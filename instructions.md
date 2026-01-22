@@ -8,11 +8,14 @@
  - type `cd Downloads` (or the location you downloaded the app)
 ![](https://i.imgur.com/hKOhgld.png)
 
-- `mqa_identifer.exe {paths to files or folders}...` for Windows or`./mqa_identifier` on OSX.
+- `mqa_identifer.exe [-v] {paths to files or folders}...` for Windows or `./mqa_identifier [-v] ...` on OSX.
+
+The optional `-v` flag enables detailed logging to `mqa_identifier.log`, recording any skipped files or errors (e.g. Mono files, permissions issues).
+
 To get the path easily simple drag n drop the file/folder to terminal.
  
  For example
->  ` mqa_identifer.exe "E:\Music\Deep Purple - Machine Head\03 Pictures of Home.flac" "D:\Music\1000mods - Super Van Vacation (2011) [FLAC-CD]"`
+>  ` mqa_identifer.exe -v "E:\Music\Deep Purple - Machine Head\03 Pictures of Home.flac" "D:\Music\1000mods - Super Van Vacation (2011) [FLAC-CD]"`
 
 Gives output: 
 ```

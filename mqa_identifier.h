@@ -52,6 +52,7 @@ class MQA_identifier {
     std::vector<std::array<const FLAC__int32, 2>> samples;
     std::string mqa_encoder;
     uint32_t original_sample_rate = 0;
+    std::string error_message; // Store error details
 
 
     explicit MyDecoder(std::string file) : FLAC::Decoder::File(), file_(std::move(file)) {};
@@ -75,12 +76,14 @@ class MQA_identifier {
   std::string file_;
   MyDecoder decoder;
   bool isMQA_;
+  std::string error_message_;
 
  public:
   explicit MQA_identifier(std::string file) : file_(std::move(file)), decoder(file_), isMQA_(false) {}
 
 
   bool detect();
+  [[nodiscard]] std::string getErrorMessage() const noexcept;
 
   [[nodiscard]] std::string getMQA_encoder() const noexcept;
   [[nodiscard]] uint32_t originalSampleRate() const noexcept;
@@ -93,7 +96,7 @@ class MQA_identifier {
                                                                            const FLAC__int32 *const buffer[]) {
 
     if (channels != 2 || (bps != 16 && bps != 24)) {
-        std::cerr << "ERROR: this tool only supports 16bit/24bit stereo streams\n";
+        this->error_message = "Unsupported Audio Format: " + std::to_string(channels) + " channels, " + std::to_string(bps) + " bits";
         return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
     }
 
@@ -129,7 +132,7 @@ void MQA_identifier::MyDecoder::metadata_callback(const ::FLAC__StreamMetadata *
 
 
 void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus status) {
-    std::cerr << "Got error callback: " << FLAC__StreamDecoderErrorStatusString[status] << "\n";
+    this->error_message += "FLAC Error: " + std::string(FLAC__StreamDecoderErrorStatusString[status]) + "; ";
 }
 
 
@@ -141,7 +144,7 @@ void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus 
     FLAC__StreamDecoderInitStatus init_status = this->init(this->file_);
 
     if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
-        std::cerr << "ERROR: initializing decoder: " << FLAC__StreamDecoderInitStatusString[init_status] << "\n";
+        this->error_message = "Initializing decoder failed: " + std::string(FLAC__StreamDecoderInitStatusString[init_status]);
         ok = false;
     }
 
@@ -150,20 +153,27 @@ void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus 
     // pre-allocate samples vector
     this->samples.reserve(this->sample_rate * 3);
 
-    while (this->decoded_samples < this->sample_rate * 3 /* read only 3 first seconds */ )
+    while (this->decoded_samples < this->sample_rate * 3 /* read only 3 first seconds */ && this->error_message.empty() && this->get_state() != FLAC__STREAM_DECODER_END_OF_STREAM)
         ok = this->process_single();
 
 
     if (!ok) {
-        std::cerr << "decoding FAILED\n";
-        std::cerr << this->get_state().resolved_as_cstring(*this);
+        if (this->error_message.empty()) // If not already set by write_callback or init
+             this->error_message = "Decoding failed: " + std::string(this->get_state().resolved_as_cstring(*this));
     }
     return init_status;
 }
 
 
 bool MQA_identifier::detect() {
-    this->decoder.decode();
+    try {
+        this->decoder.decode();
+        
+        if (!this->decoder.error_message.empty()) {
+            this->error_message_ = this->decoder.error_message;
+            return false;
+        }
+
 
     uint64_t buffer = 0;
     const auto pos = (this->decoder.bps - 16u); // aim for 16th bit
@@ -191,8 +201,19 @@ bool MQA_identifier::detect() {
         } else
             buffer = (buffer << 1u) & 0xFFFFFFFFFu;
     }
+    } catch (const std::exception &e) {
+        this->error_message_ = "Exception: " + std::string(e.what());
+        return false;
+    } catch (...) {
+        this->error_message_ = "Unknown exception during detection";
+        return false;
+    }
 
     return false;
+}
+
+std::string MQA_identifier::getErrorMessage() const noexcept {
+    return this->error_message_;
 }
 
 

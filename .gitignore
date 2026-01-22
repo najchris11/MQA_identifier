@@ -1,6 +1,7 @@
-# Project exclude paths
-/cmake-build-debug/
-/cmake-build-minsizerel/
-/cmake-build-release/
-/cmake-build-relwithdebinfo/
-/Samples/
+build/
+cmake-build-debug/
+.idea/
+*.DS_Store
+MQA_identifier
+manual test/
+mqa_identifier.log
