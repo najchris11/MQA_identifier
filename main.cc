@@ -96,10 +96,7 @@ void tagFile(const std::string& file, uint32_t original_rate) {
 
         // Check/Add MQAENCODER
         if (vcBlock->find_entry_from(0, "MQAENCODER") == -1) {
-            // Using a generic MQA encoder signature as placeholder or simply identifying it
-            // User snippet used: "MQAEncode v1.1, 2.3.3+800 (a505918), F8EC1703-7616-45E5-B81E-D60821434062, Dec 01 2017 22:19:30"
-            // Start simple: "MQA" unless specific string requested. User didn't specify, but snippet had that long string. 
-            // I'll use "MQA" for now to be safe, or the one from the snippet? 
+
             // The snippet was from "a version of this file that has writing". I should probably trust it?
             // "MQAEncode v1.1..." seems very specific to a specific encoder version. 
             // I will use "MQA" to indicate presence, or maybe "MQAEncode".

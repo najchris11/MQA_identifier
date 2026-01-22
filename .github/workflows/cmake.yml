@@ -30,10 +30,10 @@ jobs:
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
       run: |
-        vcpkg update
-        vcpkg install libflac:x64-windows
-        vcpkg install libogg:x64-windows
-        vcpkg integrate install
+        git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+        C:\vcpkg\bootstrap-vcpkg.bat
+        C:\vcpkg\vcpkg.exe install libflac:x64-windows libogg:x64-windows
+        C:\vcpkg\vcpkg.exe integrate install
 
     - name: Configure CMake
       shell: bash
