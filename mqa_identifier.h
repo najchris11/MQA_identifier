@@ -150,7 +150,7 @@ void MQA_identifier::MyDecoder::error_callback(::FLAC__StreamDecoderErrorStatus 
     // pre-allocate samples vector
     this->samples.reserve(this->sample_rate * 3);
 
-    while (this->decoded_samples < this->sample_rate * 3 /* read only 3 first seconds */ )
+    while (ok && this->decoded_samples < this->sample_rate * 3 /* read only 3 first seconds */ )
         ok = this->process_single();
 
 

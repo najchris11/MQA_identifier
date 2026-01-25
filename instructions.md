@@ -42,3 +42,51 @@ Found 1 MQA files
 
 Process finished with exit code 0
 ```
+# Building from Source (macOS)
+
+1.  **Install Dependencies**:
+    Make sure you have Homebrew installed, then run:
+    ```bash
+    brew install flac libogg cmake
+    ```
+
+2.  **Build**:
+    Navigate to the project root and run:
+    ```bash
+    mkdir -p build && cd build
+    cmake ..
+    make
+    ```
+
+3.  **Run**:
+    The executable will be in the `build` directory:
+    ```bash
+    ./MQA_identifier <path_to_flac_files>
+    ```
+    
+    Example:
+    ```bash
+    ./MQA_identifier ~/Music/MyAlbum
+    ```
+
+## Usage Flags
+
+*   `--add-mqaencoder`: Analyzes the file and adds MQA encoder tags (`ENCODER`, `MQAENCODER`, `ORIGINALSAMPLERATE`) if MQA is detected.
+*   `-rw`: (Requires `--add-mqaencoder`) Forces rewriting of existing MQA tags if they are already present.
+
+### Examples
+
+**Scan files only:**
+```bash
+./MQA_identifier /path/to/music
+```
+
+**Scan and add MQA tags:**
+```bash
+./MQA_identifier /path/to/music --add-mqaencoder
+```
+
+**Scan and force rewrite MQA tags:**
+```bash
+./MQA_identifier /path/to/music --add-mqaencoder -rw
+```

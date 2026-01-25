@@ -18,6 +18,16 @@ else (NOT (MSVC))
     STRING(REPLACE "/O2" "/Od" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 endif ()
 
+
+if(APPLE)
+    include_directories("/opt/homebrew/include")
+    include_directories("/opt/homebrew/opt/flac/include")
+    include_directories("/opt/homebrew/opt/libogg/include")
+    link_directories("/opt/homebrew/lib")
+    link_directories("/opt/homebrew/opt/flac/lib")
+    link_directories("/opt/homebrew/opt/libogg/lib")
+endif()
+
 find_library(FLAC++_LIBRARIES NAMES FLAC++ FLAC)
 find_library(ogg NAMES ogg)
 
