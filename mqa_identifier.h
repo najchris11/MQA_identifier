@@ -217,7 +217,9 @@ bool MQA_identifier::detect() {
     uint64_t buffer2 = 0;
     const auto pos = (this->decoder.bps - 16u); // aim for 16th bit
 
-    for (const auto &s: this->decoder.samples) {
+    // Use index-based loop to safely access future samples
+    for (size_t idx = 0; idx < this->decoder.samples.size(); idx++) {
+        const auto &s = this->decoder.samples[idx];
         buffer  |= ((static_cast<uint32_t>(s[0]) ^ static_cast<uint32_t>(s[1])) >> pos    ) & 1u;
         buffer1 |= ((static_cast<uint32_t>(s[0]) ^ static_cast<uint32_t>(s[1])) >> (pos + 1)) & 1u;
         buffer2 |= ((static_cast<uint32_t>(s[0]) ^ static_cast<uint32_t>(s[1])) >> (pos + 2)) & 1u;
@@ -227,18 +229,22 @@ bool MQA_identifier::detect() {
             // Get Original Sample Rate
             uint8_t orsf = 0;
             for (auto m = 3u; m < 7; m++) { // TODO: this need fix (orsf is 5bits)
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> pos) & 1u;
-                orsf |= j << (6u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> pos) & 1u;
+                    orsf |= j << (6u - m);
+                }
             }
             this->decoder.original_sample_rate = OriginalSampleRateDecoder(orsf);
 
             // Get MQA Studio
             uint8_t provenance = 0u;
             for (auto m = 29u; m < 34; m++) {
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> pos) & 1u;
-                provenance |= j << (33u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> pos) & 1u;
+                    provenance |= j << (33u - m);
+                }
             }
             this->isMQAStudio_ = provenance > 8;
 
@@ -250,18 +256,22 @@ bool MQA_identifier::detect() {
             // Get Original Sample Rate
             uint8_t orsf = 0;
             for (auto m = 3u; m < 7; m++) { // TODO: this need fix (orsf is 5bits)
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 1)) & 1u;
-                orsf |= j << (6u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 1)) & 1u;
+                    orsf |= j << (6u - m);
+                }
             }
             this->decoder.original_sample_rate = OriginalSampleRateDecoder(orsf);
 
             // Get MQA Studio
             uint8_t provenance = 0u;
             for (auto m = 29u; m < 34; m++) {
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 1)) & 1u;
-                provenance |= j << (33u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 1)) & 1u;
+                    provenance |= j << (33u - m);
+                }
             }
             this->isMQAStudio_ = provenance > 8;
 
@@ -273,18 +283,22 @@ bool MQA_identifier::detect() {
             // Get Original Sample Rate
             uint8_t orsf = 0;
             for (auto m = 3u; m < 7; m++) { // TODO: this need fix (orsf is 5bits)
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 2)) & 1u;
-                orsf |= j << (6u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 2)) & 1u;
+                    orsf |= j << (6u - m);
+                }
             }
             this->decoder.original_sample_rate = OriginalSampleRateDecoder(orsf);
 
             // Get MQA Studio
             uint8_t provenance = 0u;
             for (auto m = 29u; m < 34; m++) {
-                auto cur = *(&s + m);
-                auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 2)) & 1u;
-                provenance |= j << (33u - m);
+                if (idx + m < this->decoder.samples.size()) {
+                    const auto &cur = this->decoder.samples[idx + m];
+                    auto j = ((static_cast<uint32_t>(cur[0]) ^ static_cast<uint32_t>(cur[1])) >> (pos + 2)) & 1u;
+                    provenance |= j << (33u - m);
+                }
             }
             this->isMQAStudio_ = provenance > 8;
 

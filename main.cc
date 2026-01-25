@@ -23,6 +23,20 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <eh.h>
+
+// Structured exception handler for Windows crashes
+void translate_se_exception(unsigned int code, EXCEPTION_POINTERS* ep) {
+    std::string error_msg = "Access Violation (possible memory corruption)";
+    if (code == EXCEPTION_ACCESS_VIOLATION) {
+        error_msg = "Access Violation - attempted to read/write protected memory";
+    } else if (code == EXCEPTION_STACK_OVERFLOW) {
+        error_msg = "Stack Overflow";
+    } else if (code == EXCEPTION_ILLEGAL_INSTRUCTION) {
+        error_msg = "Illegal Instruction";
+    }
+    throw std::runtime_error(error_msg);
+}
 #endif
 
 #include <FLAC++/metadata.h>
@@ -204,61 +218,189 @@ void recursiveScan(const fs::path &curDir, std::vector<fs::path> &files) {
 }
 
 void processFile(const fs::path& file, int index) {
-    auto id = MQA_identifier(file);
-    bool detected = id.detect();
-    std::string filename;
+    std::string filename_str;
+    MQA_identifier* id_ptr = nullptr;  // Initialize pointer early for safety
+    
     try {
-        filename = safe_path_string(file.filename());
+        filename_str = safe_path_string(file);
     } catch (...) {
-        filename = "Unknown_File";
+        filename_str = "<unknown>";
     }
-
-    if (detected) {
-        {
-            std::lock_guard<std::mutex> lock(console_mutex);
-            std::cout << std::setw(3) << index << "\t";
-            if (id.originalSampleRate()) {
-                std::cout << "MQA " << (id.isMQAStudio() ? "Studio " : "") << getSampleRateString(id.originalSampleRate()) << "\t";
+    
+    try {
+        std::cerr << "[FUNC] processFile starting for index " << index << "\n"; std::cerr.flush();
+        
+        // Validate FLAC file header before processing
+        std::cerr << "[FUNC] Validating FLAC file header\n"; std::cerr.flush();
+        try {
+            std::ifstream flac_check(file, std::ios::binary);
+            if (!flac_check.is_open()) {
+                throw std::runtime_error("Cannot open file");
             }
-            else {
-                std::cout << "MQA\t\t";
+            
+            // Read FLAC header (4 bytes: "fLaC")
+            char flac_header[4];
+            flac_check.read(flac_header, 4);
+            if (!flac_check || flac_check.gcount() != 4) {
+                throw std::runtime_error("File too small or unreadable");
             }
-            std::cout << filename << "\n";
+            
+            if (!(flac_header[0] == 'f' && flac_header[1] == 'L' && 
+                  flac_header[2] == 'a' && flac_header[3] == 'C')) {
+                std::cerr << "[FUNC] Not a valid FLAC file (bad header)\n"; std::cerr.flush();
+                log_skip(filename_str, "Not a valid FLAC file");
+                scanned_count++;
+                return;
+            }
+            flac_check.close();
+        } catch (const std::exception& e) {
+            std::cerr << "[FUNC] Error validating FLAC header: " << e.what() << "\n"; std::cerr.flush();
+            log_skip(filename_str, std::string("Invalid FLAC: ") + e.what());
+            scanned_count++;
+            return;
         }
         
-        // Write tags (outside the lock)
-        if (id.originalSampleRate()) {
-             tagFile(file, id.originalSampleRate());
-        } else {
-             tagFile(file, 0);
+        std::cerr << "[FUNC] FLAC header valid, creating MQA_identifier object\n"; std::cerr.flush();
+        
+        // Create the MQA_identifier with extra safety
+        MQA_identifier* id_ptr = nullptr;
+        try {
+            id_ptr = new MQA_identifier(file);
+        } catch (const std::exception& e) {
+            std::cerr << "[FUNC] Exception creating MQA_identifier: " << e.what() << "\n"; std::cerr.flush();
+            log_skip(filename_str, std::string("Failed to create decoder: ") + e.what());
+            scanned_count++;
+            if (id_ptr) delete id_ptr;
+            return;
+        } catch (...) {
+            std::cerr << "[FUNC] Unknown exception creating MQA_identifier\n"; std::cerr.flush();
+            log_skip(filename_str, "Failed to create decoder");
+            scanned_count++;
+            if (id_ptr) delete id_ptr;
+            return;
+        }
+        
+        std::cerr << "[FUNC] Calling detect() - this may crash for corrupted files\n"; std::cerr.flush();
+        std::cerr.flush();
+        
+        // Add a safety wrapper around detect to catch crashes
+        bool detected = false;
+        try {
+            detected = id_ptr->detect();
+            std::cerr << "[FUNC] detect() completed successfully, result: " << (detected ? "MQA" : "NOT MQA") << "\n"; std::cerr.flush();
+        } catch (const std::exception& e) {
+            std::cerr << "[FUNC] Exception in detect(): " << e.what() << "\n"; std::cerr.flush();
+            delete id_ptr;
+            log_skip(filename_str, std::string("detect() failed: ") + e.what());
+            scanned_count++;
+            return;
+        } catch (...) {
+            std::cerr << "[FUNC] Unknown exception/crash in detect() - file may be corrupted\n"; std::cerr.flush();
+            delete id_ptr;
+            log_skip(filename_str, "detect() crashed - possible file corruption");
+            scanned_count++;
+            return;
+        }
+        
+        MQA_identifier& id = *id_ptr;
+        
+        std::cerr << "[FUNC] Getting filename\n"; std::cerr.flush();
+        std::string filename;
+        try {
+            filename = safe_path_string(file.filename());
+        } catch (...) {
+            filename = "Unknown_File";
         }
 
-        mqa_count++;
-        std::string extra_info = id.isMQAStudio() ? "Studio " : "";
-        extra_info += getSampleRateString(id.originalSampleRate());
-        log_message("[MQA] " + safe_path_string(file) + " (" + extra_info + ")");
-    } else {
-        std::string err = id.getErrorMessage();
-        if (!err.empty()) {
-            log_skip(safe_path_string(file), err);
-        } else {
-            // Only print NOT MQA if no error occurred
+        std::cerr << "[FUNC] Checking if detected\n"; std::cerr.flush();
+        if (detected) {
+            std::cerr << "[FUNC] MQA detected, printing output\n"; std::cerr.flush();
             {
                 std::lock_guard<std::mutex> lock(console_mutex);
-                std::cout << std::setw(3) << index << "\tNOT MQA \t" << filename << "\n";
+                std::cout << std::setw(3) << index << "\t";
+                if (id.originalSampleRate()) {
+                    std::cout << "MQA " << (id.isMQAStudio() ? "Studio " : "") << getSampleRateString(id.originalSampleRate()) << "\t";
+                }
+                else {
+                    std::cout << "MQA\t\t";
+                }
+                std::cout << filename << "\n";
+                std::cout.flush();
             }
-            log_message("[NOT MQA] " + safe_path_string(file));
+            
+            std::cerr << "[FUNC] Tagging file\n"; std::cerr.flush();
+            // Write tags (outside the lock)
+            if (id.originalSampleRate()) {
+                 tagFile(file, id.originalSampleRate());
+            } else {
+                 tagFile(file, 0);
+            }
+
+            mqa_count++;
+            std::string extra_info = id.isMQAStudio() ? "Studio " : "";
+            extra_info += getSampleRateString(id.originalSampleRate());
+            log_message("[MQA] " + safe_path_string(file) + " (" + extra_info + ")");
+        } else {
+            std::cerr << "[FUNC] Not MQA, checking for errors\n"; std::cerr.flush();
+            std::string err = id.getErrorMessage();
+            if (!err.empty()) {
+                log_skip(safe_path_string(file), err);
+            } else {
+                // Only print NOT MQA if no error occurred
+                {
+                    std::lock_guard<std::mutex> lock(console_mutex);
+                    std::cout << std::setw(3) << index << "\tNOT MQA \t" << filename << "\n";
+                    std::cout.flush();
+                }
+                log_message("[NOT MQA] " + safe_path_string(file));
+            }
         }
+        std::cerr << "[FUNC] Incrementing counter\n"; std::cerr.flush();
+        scanned_count++;
+        std::cerr << "[FUNC] processFile completed successfully\n"; std::cerr.flush();
+        
+        // Cleanup
+        if (id_ptr) delete id_ptr;
+        
+    } catch (const std::exception& e) {
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cerr << "ERROR processing file: " << filename_str << " - Exception: " << e.what() << "\n";
+            std::cerr.flush();
+        }
+        try {
+            log_skip(filename_str, std::string("Exception: ") + e.what());
+        } catch (...) {}
+        try {
+            scanned_count++;
+        } catch (...) {}
+        if (id_ptr) delete id_ptr;
+    } catch (...) {
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cerr << "UNKNOWN ERROR processing file: " << filename_str << "\n";
+            std::cerr.flush();
+        }
+        try {
+            log_skip(filename_str, "Unknown exception");
+        } catch (...) {}
+        try {
+            scanned_count++;
+        } catch (...) {}
+        if (id_ptr) delete id_ptr;
     }
-    scanned_count++;
 }
 
 int main(int argc, char *argv[]) {
 #ifdef _WIN32
     // Set console code page to UTF-8 to handle special characters in paths
     SetConsoleOutputCP(65001);
+    
+    // Set up structured exception handler for crashes in FLAC library
+    _set_se_translator(translate_se_exception);
 #endif
 
+    try {
     // Parse arguments
     std::vector<std::string> input_paths;
     
@@ -302,54 +444,37 @@ int main(int argc, char *argv[]) {
     std::cout << "**************************************************\n";
 
     std::cout << "Found " << files.size() << " file for scanning. Processing...\n\n";
+    std::cout.flush();
+    std::cerr << "[DEBUG] About to process " << files.size() << " files\n";
+    std::cerr.flush();
 
     std::cout << "  #\tEncoding\tName\n";
 
-    // Determine max threads (bounded concurrency)
-    unsigned int max_threads = std::thread::hardware_concurrency();
-    if (max_threads == 0) max_threads = 4; // Fallback
-    // Cap it reasonable to avoid too much contention even on high-core systems if IO bound
-    // But for this tool, IO is the bottleneck. 8-16 is usually good.
-    if (max_threads > 16) max_threads = 16;
+    // Process files sequentially (no threading - simpler and more reliable)
+    std::cerr << "[DEBUG] Processing files sequentially\n"; std::cerr.flush();
     
-    std::vector<std::future<void>> futures;
     int count = 0;
     
-    // Bounded execution loop
+    std::cerr << "[DEBUG] Starting file loop with " << files.size() << " files\n";
+    std::cerr.flush();
+    
     for (const auto &file : files) {
-        // If we filled our pool, wait for at least one to finish
-        // Simple strategy: cleanup finished tasks before adding new ones
-        // If still full, wait for the oldest one.
-        
-        // 1. Clean up finished tasks
-        for (auto it = futures.begin(); it != futures.end(); ) {
-            if (it->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-                it->get(); // Propagate exceptions if any (though processFile catches them)
-                it = futures.erase(it);
-            } else {
-                ++it;
-            }
+        try {
+            std::cerr << "[DEBUG] Processing file #" << (count+1) << ": " << file.filename().string() << "\n"; std::cerr.flush();
+            processFile(file, ++count);
+            std::cerr << "[DEBUG] File #" << count << " completed successfully\n"; std::cerr.flush();
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in main loop for file #" << count << ": " << e.what() << "\n"; std::cerr.flush();
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in main loop for file #" << count << "\n"; std::cerr.flush();
         }
-        
-        // 2. If full, wait for one
-        if (futures.size() >= max_threads) {
-             // Wait for the first one (FIFO ish) or any. 
-             // Simplest is wait for front.
-             futures.front().wait();
-             futures.front().get();
-             futures.erase(futures.begin());
-        }
-
-        // 3. Launch new task
-        futures.push_back(std::async(std::launch::async, processFile, file, ++count));
     }
+    
+    std::cerr << "[DEBUG] File loop completed\n"; std::cerr.flush();
 
-    // Wait for remaining
-    for (auto &f : futures) {
-        f.wait();
-        f.get();
-    }
-
+    std::cerr << "[DEBUG] All files processed\n";
+    std::cerr.flush();
+    
     std::cout << "\n**************************************************\n";
     std::cout << "Scanned " << scanned_count << " files\n"; 
     std::cout << "Found " << mqa_count << " MQA files\n";
@@ -386,6 +511,20 @@ int main(int argc, char *argv[]) {
         } else {
             std::cerr << "Failed to open log file for writing at " << log_file_path << "\n";
         }
+    }
+    
+    std::cerr << "[DEBUG] Program completed successfully\n";
+    std::cerr.flush();
+    return 0;
+    
+    } catch (const std::exception& e) {
+        std::cerr << "\n[FATAL ERROR] Uncaught exception: " << e.what() << "\n";
+        std::cerr.flush();
+        return 1;
+    } catch (...) {
+        std::cerr << "\n[FATAL ERROR] Unknown uncaught exception\n";
+        std::cerr.flush();
+        return 1;
     }
 }
 
