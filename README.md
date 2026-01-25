@@ -21,6 +21,8 @@ For example
 
 
 **More detailed instructions here** [***here***](instructions.md)
+<br>
+**Build from source instructions** [***here***](BUILDING.md)
 
 <br>
 <br>

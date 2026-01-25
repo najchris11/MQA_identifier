@@ -12,16 +12,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install Dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libflac++-dev libogg-dev
 
     - name: Install Dependencies (macOS)
       if: runner.os == 'macOS'
