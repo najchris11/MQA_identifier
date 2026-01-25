@@ -214,18 +214,25 @@ void processFile(const fs::path& file, int index) {
     }
 
     if (detected) {
-        std::lock_guard<std::mutex> lock(console_mutex);
-        std::cout << std::setw(3) << index << "\t";
-        if (id.originalSampleRate()) {
-            std::cout << "MQA " << (id.isMQAStudio() ? "Studio " : "") << getSampleRateString(id.originalSampleRate()) << "\t";
-             // Write tags
-             tagFile(file, id.originalSampleRate());
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cout << std::setw(3) << index << "\t";
+            if (id.originalSampleRate()) {
+                std::cout << "MQA " << (id.isMQAStudio() ? "Studio " : "") << getSampleRateString(id.originalSampleRate()) << "\t";
+            }
+            else {
+                std::cout << "MQA\t\t";
+            }
+            std::cout << filename << "\n";
         }
-        else {
-            std::cout << "MQA\t\t";
+        
+        // Write tags (outside the lock)
+        if (id.originalSampleRate()) {
+             tagFile(file, id.originalSampleRate());
+        } else {
              tagFile(file, 0);
         }
-        std::cout << filename << "\n";
+
         mqa_count++;
         std::string extra_info = id.isMQAStudio() ? "Studio " : "";
         extra_info += getSampleRateString(id.originalSampleRate());
@@ -236,8 +243,10 @@ void processFile(const fs::path& file, int index) {
             log_skip(safe_path_string(file), err);
         } else {
             // Only print NOT MQA if no error occurred
-            std::lock_guard<std::mutex> lock(console_mutex);
-            std::cout << std::setw(3) << index << "\tNOT MQA \t" << filename << "\n";
+            {
+                std::lock_guard<std::mutex> lock(console_mutex);
+                std::cout << std::setw(3) << index << "\tNOT MQA \t" << filename << "\n";
+            }
             log_message("[NOT MQA] " + safe_path_string(file));
         }
     }
